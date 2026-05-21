@@ -6,7 +6,7 @@ This example aims to demonstrate several key features of Compact and Midnight JS
 
 - The privacy boundary in Compact and Midnight DApps
 - Contract syntax for NIGHT deposit and payout
-- MidnightJS Unshielded Address interaction
+- MidnightJS unshielded address interaction
 - MidnightJS balance checks
 - MidnightJS manual contract deployment (local, prove, balance, submit, finalize)
 
