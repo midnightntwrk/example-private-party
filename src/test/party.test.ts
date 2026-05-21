@@ -18,7 +18,7 @@ import { randomBytes } from 'node:crypto';
 import { setNetworkId } from '@midnight-ntwrk/midnight-js/network-id';
 import { createUnprovenDeployTx, deployContract, submitCallTx, type DeployedContract } from '@midnight-ntwrk/midnight-js/contracts';
 import type { ContractAddress } from '@midnight-ntwrk/compact-runtime';
-import { encodeUserAddress, sampleUserAddress } from '@midnight-ntwrk/compact-runtime';
+import { encodeUserAddress } from '@midnight-ntwrk/compact-runtime';
 import pino from 'pino';
 
 import { getConfig } from '../config.js';
@@ -33,9 +33,8 @@ import {
 } from '../../contract/index.js';
 import { createPartyPrivateState } from '../../contract/witnesses.js'
 import type { EnvironmentConfiguration } from '@midnight-ntwrk/testkit-js';
-import type { FinalizedCallTxData } from '@midnight-ntwrk/midnight-js/contracts';
+import type { FinalizedCallTxData, UnsubmittedDeployTxData } from '@midnight-ntwrk/midnight-js/contracts';
 import type { UnshieldedAddress } from '@midnight-ntwrk/wallet-sdk-address-format';
-import { nativeToken } from '@midnight-ntwrk/ledger-v8';
 
 const logger = pino({
     level: process.env['LOG_LEVEL'] ?? 'info',
@@ -174,7 +173,6 @@ describe('Private Party smart contract via midnight-js', () => {
             });
         logger.info(`Bob rsvp'd successfully!`);
 
-
         // state verification checks here
         const state = await queryLedger(aliceProviders);
         expect(state.hashedPartyGoers.size()).toEqual(1n);
@@ -187,7 +185,7 @@ describe('Private Party smart contract via midnight-js', () => {
 
         logger.info(`Alice tries to rsvp...`);
         await expect(async () => {
-            await (submitCallTx<Contract, 'rsvp'>)(bobProviders, {
+            await (submitCallTx<Contract, 'rsvp'>)(aliceProviders, {
                 compiledContract: CompiledPartyContract,
                 contractAddress,
                 privateStateId: ALICE_PRIVATE_ID,
@@ -230,7 +228,7 @@ describe('Private Party smart contract via midnight-js', () => {
             await (submitCallTx<Contract, 'startParty'>)(bobProviders, {
                 compiledContract: CompiledPartyContract,
                 contractAddress,
-                privateStateId: ALICE_PRIVATE_ID,
+                privateStateId: BOB_PRIVATE_ID,
                 circuitId: 'startParty',
             });
         }).rejects.toThrow();
@@ -338,12 +336,13 @@ describe('Private Party smart contract via midnight-js', () => {
         const alicePrivateState = createPartyPrivateState(randomBytes(32));
     
         // Step 1: Local circuit execution
-        const unprovenData: any = await (createUnprovenDeployTx as any)(aliceProviders, {
-            compiledContract: CompiledPartyContract,
-            privateStateId: ALICE_PRIVATE_ID,
-            initialPrivateState: alicePrivateState,
-            args: [PARTY_SIZE, FEE]
-        });
+        const unprovenData: UnsubmittedDeployTxData<Contract> = 
+            await (createUnprovenDeployTx as any)(aliceProviders, {
+                compiledContract: CompiledPartyContract,
+                privateStateId: ALICE_PRIVATE_ID,
+                initialPrivateState: alicePrivateState,
+                args: [PARTY_SIZE, FEE]
+            });
         
         const pendingAddress = unprovenData.public?.contractAddress;
         logger.info(`Unproven tx created. Pending contract address: ${pendingAddress}`);
