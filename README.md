@@ -1,72 +1,126 @@
-# Midnight Template Repository
+# Private Party Example
 
-This GitHub repository should be used as a template when creating a new Midnight GitHub repository.
-The template is configured with default repository settings and a set of default files that are expected to exist in all Midnight GitHub repositories.
+This repository implements a private party DApp that demonstrates the privacy boundary in Midnight DApps. The party goers send an RSVP under a pseudonym and remain anonymous until they arrive at the party. The party has an entry fee and that entry fee is paid in NIGHT -- this is the exact location of the privacy boundary for party goers. The organizer remains anonymous until they claim the fees collected from the entry cost at which time they become public (on-chain).
 
-### LICENSE
+This example aims to demonstrate several key features of Compact and Midnight JS including:
 
-Apache 2.0.
+- The privacy boundary in Compact and Midnight DApps
+- Contract syntax for NIGHT deposit and payout
+- MidnightJS Unshielded Address interaction
+- MidnightJS balance checks
+- MidnightJS manual contract deployment (local, prove, balance, submit, finalize)
 
-### README.md
+## Set up project
 
-Provides a brief description for users and developers who want to understand the purpose, setup, and usage of the repository.
+```bash
+git clone git@github.com:midnightntwrk/example-private-party
+```
 
-### SECURITY.md
+Install dependencies:  
 
-Provides a brief description of the Midnight Foundation's security policy and how to properly disclose security issues.
+```bash 
+yarn install
+```
 
-### CONTRIBUTING.md
+## Compile the contract
 
-Provides guidelines for how people can contribute to the Midnight project.
+```bash
+yarn compile
+```
 
-### CODEOWNERS
+## Start Docker container
 
-Defines repository ownership rules.
+```bash
+yarn env:up
+```
 
-### ISSUE_TEMPLATE
+## Run the test suite
 
-Provides templates for reporting various types of issues, such as: bug report, documentation improvement and feature request.
+```bash
+yarn test:local
+```
 
-### PULL_REQUEST_TEMPLATE
+The test script will begin to display output from your local devnet and test suite. The tests will progress the contract deployment and interaction programmatically:
 
-Provides a template for a pull request.
+```
+[19:24:30.625] INFO (16883): Wallet sync [47]: shielded=true, unshielded=true, dust=true
+[19:24:30.625] INFO (16883): Wallet sync complete after 47 emissions
+[19:24:30.628] INFO (16883): Providers initialized. Ready to test.
+[19:24:30.629] INFO (16883): Bob providers successfully initialized
+[19:24:30.629] INFO (16883): Claire providers successfully initialized
+[19:24:30.630] INFO (16883): Deploying a contract the easy way...
+[19:24:50.702] INFO (16883): Contract deployed at e6937e30874b075e4bc693f7e23791b308c4d4eb2de8a86e644ea0a1cbe8e996
+[19:24:50.805] INFO (16883): Bob is sending an RSVP...
+[19:25:07.918] INFO (16883): Bob rsvp'd successfully!
+[19:25:07.926] INFO (16883): Alice tries to rsvp...
+[19:25:07.949] INFO (16883): Alice was rejected!
+[19:25:08.037] INFO (16883): Claire is attempting to rsvp...
+[19:25:25.976] INFO (16883): Claire successfully rsvp'd!
+[19:25:25.982] INFO (16883): Bob tries to start the party...
+[19:25:26.004] INFO (16883): Bob was rejected!
+[19:25:26.009] INFO (16883): Alice starts the party...
+[19:25:43.999] INFO (16883): Alice started the party successfully!
+[19:25:44.006] INFO (16883): Bob is checking in...
+[19:26:02.719] INFO (16883): Bob has successfully checked in and is now public!
+[19:26:02.726] INFO (16883): Bob is attempting to close the doors...
+[19:26:02.750] INFO (16883): Bob was rejected!
+[19:26:02.756] INFO (16883): Alice is closing the doors...
+[19:26:20.796] INFO (16883): Alice has successfully closed the doors!
+[19:26:20.807] INFO (16883): Alice NIGHT balance before claimFees: 250000000000055
+[19:26:20.807] INFO (16883): Alice is claiming fees...
+[19:26:38.811] INFO (16883): Alice has successfully claimed fees!
+[19:26:47.349] INFO (16883): Alice NIGHT balance after claimFees:  250000000000060
+[19:26:47.349] INFO (16883): Alice NIGHT balance delta:            5
+[19:26:47.373] INFO (16883): Unproven tx created. Pending contract address: 683870f23a626fbb90493e238afbb156711753a886f3a63dbf2497e21d6840e7
+[19:26:47.373] INFO (16883): proven tx received from proof server
+[19:26:47.791] INFO (16883): Balanced tx ready for submission
+[19:27:07.893] INFO (16883): Submitted tx id: 00e232030e6183c74e83c0342d02ea4a9d9a12a1094473fc29fba33a638ef2af98
+ ✓ src/test/party.test.ts (11 tests) 173684ms
+   ✓ Private Party smart contract via midnight-js > Deploys a contract (the easy way)  22072ms
+   ✓ Private Party smart contract via midnight-js > Allows Bob to rsvp (privately)  17211ms
+   ✓ Private Party smart contract via midnight-js > Blocks organizers from rsvp 25ms
+   ✓ Private Party smart contract via midnight-js > Allows Claire to rsvp(privately)  20028ms
+   ✓ Private Party smart contract via midnight-js > Blocks non-organizers from starting the party 27ms
+   ✓ Private Party smart contract via midnight-js > starts the party  20022ms
+   ✓ Private Party smart contract via midnight-js > Allows Bob to check in  18721ms
+   ✓ Private Party smart contract via midnight-js > Blocks non-organizers from closing the doors 30ms
+   ✓ Private Party smart contract via midnight-js > Closes the doors to the party  20039ms
+   ✓ Private Party smart contract via midnight-js > Allows Alice to claimFees  28580ms
+   ✓ Private Party smart contract via midnight-js > Deploys the contract(the hard way)  23555ms
+```
 
-### CLA Assistant
+To run the zkir linter, from the project root run:
 
-The Midnight Foundation appreciates contributions, and like many other open source projects asks contributors to sign a contributor
-License Agreement before accepting contributions. We use CLA assistant (https://github.com/cla-assistant/cla-assistant) to streamline the CLA
-signing process, enabling contributors to sign our CLAs directly within a GitHub pull request.
+```bash
+npx compact-zkir-lint -r contract/managed/private-party/zkir
+```
 
-### Dependabot
+The output should look like this:
 
-The Midnight Foundation uses GitHub Dependabot feature to keep our projects dependencies up-to-date and address potential security vulnerabilities.
+```bash
+zkir-lint: scanned 5 file(s)
 
-### Checkmarx
+  checkIn (v2, k=11): clean
+    instructions: 260  inputs: 2  constrain_bits: 4  cond_select: 6
+    guarded regions: 0 (max depth 0)  proof payload: ~96KB
 
-The Midnight Foundation uses Checkmarx for application security (AppSec) to identify and fix security vulnerabilities.
-All repositories are scanned with Checkmarx's suite of tools including: Static Application Security Testing (SAST), Infrastructure as Code (IaC), Software Composition Analysis (SCA), API Security, Container Security and Supply Chain Scans (SCS).
+  claimFees (v2, k=11): clean
+    instructions: 305  inputs: 2  constrain_bits: 4  cond_select: 2
+    guarded regions: 0 (max depth 0)  proof payload: ~96KB
 
-### Unito
+  closeEntry (v2, k=11): clean
+    instructions: 65  inputs: 0  constrain_bits: 2  cond_select: 1
+    guarded regions: 0 (max depth 0)  proof payload: ~96KB
 
-Facilitates two-way data synchronization, automated workflows and streamline processes between: Jira, GitHub issues and Github project Kanban board.
+  rsvp (v2, k=12): clean
+    instructions: 181  inputs: 2  constrain_bits: 4  cond_select: 7
+    guarded regions: 0 (max depth 0)  proof payload: ~192KB
 
-# TODO - New Repo Owner
+  startParty (v2, k=11): clean
+    instructions: 86  inputs: 0  constrain_bits: 2  cond_select: 8
+    guarded regions: 0 (max depth 1)  proof payload: ~96KB
 
-### Software Package Data Exchange (SPDX)
-Include the following Software Package Data Exchange (SPDX) short-form identifier in a comment at the top headers of each source code file.
+0 error(s), 0 warning(s), 0 info(s) | 5/5 clean
+```
 
-
- <I>// This file is part of <B>REPLACE WITH REPO-NAME</B>.<BR>
- // Copyright (C) Midnight Foundation<BR>
- // SPDX-License-Identifier: Apache-2.0<BR>
- // Licensed under the Apache License, Version 2.0 (the "License");<BR>
- // You may not use this file except in compliance with the License.<BR>
- // You may obtain a copy of the License at<BR>
- //<BR>
- //	https://www.apache.org/licenses/LICENSE-2.0<BR>
- //<BR>
- // Unless required by applicable law or agreed to in writing, software<BR>
- // distributed under the License is distributed on an "AS IS" BASIS,<BR>
- // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.<BR>
- // See the License for the specific language governing permissions and<BR>
- // limitations under the License.</I>
+This repository is currently only set up to support a local devnet running via Docker. The configurations for other networks and handling of those configs can be set up in `config.ts` and supporting files to enable their operation.
