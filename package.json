@@ -15,12 +15,12 @@
     "validate": "yarn env:up && yarn test:local; yarn env:down"
   },
   "dependencies": {
-    "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
+    "@midnight-ntwrk/midnight-js-contracts": "4.1.1",
     "@midnight-ntwrk/midnight-js-http-client-proof-provider": "4.1.1",
     "@midnight-ntwrk/midnight-js-indexer-public-data-provider": "4.1.1",
     "@midnight-ntwrk/midnight-js-level-private-state-provider": "4.1.1",
     "@midnight-ntwrk/midnight-js-node-zk-config-provider": "4.1.1",
-    "@midnight-ntwrk/midnight-js-contracts": "4.1.1",
+    "@midnight-ntwrk/midnight-js-protocol": "4.1.1",
     "@midnight-ntwrk/testkit-js": "4.1.1",
     "@midnight-ntwrk/wallet-sdk": "1.0.0",
     "axios": "^1.13.6",
@@ -34,6 +34,7 @@
     "@types/node": "^22.0.0",
     "@types/ws": "^8.5.9",
     "typescript": "^5.7.0",
+    "undici": "7.27.1",
     "vitest": "^3.0.0"
   },
   "packageManager": "yarn@1.22.22"
