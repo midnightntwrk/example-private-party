@@ -12,6 +12,7 @@
     "test:local": "MIDNIGHT_NETWORK=local yarn test",
     "env:up": "docker compose up -d --wait",
     "env:down": "docker compose down",
+    "wait:dust": "vite-node scripts/wait-for-dust.ts",
     "validate": "yarn env:up && yarn test:local; yarn env:down"
   },
   "dependencies": {
