@@ -31,15 +31,12 @@ export ledger partyState: PartyState;
 export ledger hashedPartyGoers: Set<Bytes<32>>;
 export ledger checkedInParty: Set<UserAddress>;
 
-witness localSecret(): Bytes<32>;
-
-constructor (partySize: Uint<16>, fee: Uint<16>) {
-    const _secret = localSecret();
-    const pubKey = getDappPublicKey(_secret);
-    organizer = disclose(pubKey);
-
+constructor (partySize: Uint<16>, fee: Uint<16>, _secret: Bytes<32>) {
     assert(partySize > 0, "The party size must be greater than zero");
     assert(fee > 0, "Fee must be greater than zero");
+
+    const pubKey = getDappPublicKey(_secret);
+    organizer = disclose(pubKey);
 
     entryFee = disclose(fee);
     maxListSize = disclose(partySize);
@@ -47,8 +44,7 @@ constructor (partySize: Uint<16>, fee: Uint<16>) {
 }
 
 // called by party goers
-export circuit rsvp(_address: UserAddress): [] {
-    const _secret = localSecret();
+export circuit rsvp(_address: UserAddress, _secret: Bytes<32>): [] {
     const pubKey = getDappPublicKey(_secret);
     // caller authentication check
     assert(pubKey != organizer, "Organizer cannot RSVP to the party");
@@ -69,8 +65,7 @@ export circuit rsvp(_address: UserAddress): [] {
 }
 
 // start the party (organizer)
-export circuit startParty(): [] {
-    const _secret = localSecret();
+export circuit startParty(_secret: Bytes<32>): [] {
     const pubKey = getDappPublicKey(_secret);
     assert(organizer == pubKey, "Only the organizer can start the party");
     assert(partyState == PartyState.READY || partyState == PartyState.NOT_STARTED, 
@@ -79,8 +74,7 @@ export circuit startParty(): [] {
     partyState = PartyState.STARTED;
 }
 
-export circuit closeEntry(): [] {
-    const _secret = localSecret();
+export circuit closeEntry(_secret: Bytes<32>): [] {
     const pubKey = getDappPublicKey(_secret);
     assert(organizer == pubKey, "Only organizer can close the doors");
     assert(partyState == PartyState.STARTED, "Party in wrong state");
@@ -90,12 +84,11 @@ export circuit closeEntry(): [] {
 
 // called by the party goer, so the payment can be prompted to the caller
 // after the execution of this circuit, party goers are public
-export circuit checkIn(address: UserAddress): [] {
+export circuit checkIn(address: UserAddress, _secret: Bytes<32>): [] {
     // state verification checks
     assert(partyState == PartyState.STARTED, "The party has not been started. Call the party police");
     assert(checkedInParty.size() < hashedPartyGoers.size(), "All guests have already checked in");
 
-    const _secret = localSecret();
     const commitHash = commitAddress(_secret, address.bytes);
 
     // caller verification checks
@@ -111,8 +104,7 @@ export circuit checkIn(address: UserAddress): [] {
     }
 }
 
-export circuit claimFees(address: UserAddress): [] {
-    const _secret = localSecret();
+export circuit claimFees(address: UserAddress, _secret: Bytes<32>): [] {
     const pubKey = getDappPublicKey(_secret);
     assert(organizer == pubKey, "You are not the organizer");
 
@@ -133,7 +125,7 @@ export circuit claimFees(address: UserAddress): [] {
     partyState = PartyState.FEES_CLAIMED;
 }
 
-circuit commitAddress(_secret: Bytes<32>, _address: Bytes<32>): Bytes<32> {
+circuit commitAddress(_address: Bytes<32>, _secret: Bytes<32>): Bytes<32> {
     return persistentCommit<Bytes<32>>(_address, _secret);
 }
 
