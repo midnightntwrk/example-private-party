@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import type { WitnessContext } from '@midnight-ntwrk/compact-runtime';
+import type { WitnessContext } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
 import { PartyState, type Ledger } from './managed/private-party/contract/index.js';
 
 export type PartyPrivateState = {
