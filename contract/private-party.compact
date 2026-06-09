@@ -74,14 +74,6 @@ export circuit startParty(_secret: Bytes<32>): [] {
     partyState = PartyState.STARTED;
 }
 
-export circuit closeEntry(_secret: Bytes<32>): [] {
-    const pubKey = getDappPublicKey(_secret);
-    assert(organizer == pubKey, "Only organizer can close the doors");
-    assert(partyState == PartyState.STARTED, "Party in wrong state");
-
-    partyState = PartyState.DOORS_CLOSED;
-}
-
 // called by the party goer, so the payment can be prompted to the caller
 // after the execution of this circuit, party goers are public
 export circuit checkIn(address: UserAddress, _secret: Bytes<32>): [] {
@@ -104,6 +96,14 @@ export circuit checkIn(address: UserAddress, _secret: Bytes<32>): [] {
     }
 }
 
+export circuit closeEntry(_secret: Bytes<32>): [] {
+    const pubKey = getDappPublicKey(_secret);
+    assert(organizer == pubKey, "Only organizer can close the doors");
+    assert(partyState == PartyState.STARTED, "Party in wrong state");
+
+    partyState = PartyState.DOORS_CLOSED;
+}
+
 export circuit claimFees(address: UserAddress, _secret: Bytes<32>): [] {
     const pubKey = getDappPublicKey(_secret);
     assert(organizer == pubKey, "You are not the organizer");
@@ -116,7 +116,7 @@ export circuit claimFees(address: UserAddress, _secret: Bytes<32>): [] {
     const totalCollected = checkedInParty.size() * entryFee;
     assert(unshieldedBalanceGte(nativeToken(), totalCollected), "Contract balance wrong");
 
-    // send to organizer
+    // send to organizer, they are now public
     sendUnshielded(
         nativeToken(),
         disclose(totalCollected) as Uint<128>,
