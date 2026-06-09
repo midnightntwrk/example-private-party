@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { CompiledContract } from '@midnight-ntwrk/compact-js';
+import { CompiledContract } from '@midnight-ntwrk/midnight-js-protocol/compact-js';
 import path from 'node:path';
 
 export {
@@ -22,11 +22,9 @@ export {
     pureCircuits,
     PartyState,
     type Ledger,
-    type Witnesses,
     type ImpureCircuits,
     type PureCircuits,
 } from './managed/private-party/contract/index.js';
-import { witnesses } from './witnesses.js';
 import { Contract } from './managed/private-party/contract/index.js';
 
 const currentDir = path.resolve(new URL(import.meta.url).pathname, '..');
@@ -36,6 +34,6 @@ export const CompiledPartyContract = CompiledContract.make(
   'PartyContract',
   Contract,
 ).pipe(
-  CompiledContract.withWitnesses(witnesses),
+  CompiledContract.withVacantWitnesses,
   CompiledContract.withCompiledFileAssets(zkConfigPath),
 );

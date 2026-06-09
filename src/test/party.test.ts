@@ -15,10 +15,10 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { randomBytes } from 'node:crypto';
-import { setNetworkId } from '@midnight-ntwrk/midnight-js/network-id';
-import { createUnprovenDeployTx, deployContract, submitCallTx, type DeployedContract } from '@midnight-ntwrk/midnight-js/contracts';
-import type { ContractAddress } from '@midnight-ntwrk/compact-runtime';
-import { encodeUserAddress } from '@midnight-ntwrk/compact-runtime';
+import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
+import { createUnprovenDeployTx, deployContract, submitCallTx, type DeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
+import type { ContractAddress } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
+import { encodeUserAddress } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
 import pino from 'pino';
 
 import { getConfig } from '../config.js';
@@ -33,7 +33,7 @@ import {
 } from '../../contract/index.js';
 import { createPartyPrivateState } from '../../contract/witnesses.js'
 import type { EnvironmentConfiguration } from '@midnight-ntwrk/testkit-js';
-import type { FinalizedCallTxData, UnsubmittedDeployTxData } from '@midnight-ntwrk/midnight-js/contracts';
+import type { FinalizedCallTxData, UnsubmittedDeployTxData } from '@midnight-ntwrk/midnight-js-contracts';
 import type { UnshieldedAddress } from '@midnight-ntwrk/wallet-sdk-address-format';
 
 const logger = pino({
@@ -137,7 +137,7 @@ describe('Private Party smart contract via midnight-js', () => {
                 compiledContract: CompiledPartyContract,
                 privateStateId: ALICE_PRIVATE_ID,
                 initialPrivateState: alicePrivateState,
-                args: [PARTY_SIZE, FEE]
+                args: [PARTY_SIZE, FEE, alicePrivateState.secret]
             });
 
         contractAddress = deployed.deployTxData.public.contractAddress;
@@ -169,7 +169,7 @@ describe('Private Party smart contract via midnight-js', () => {
                 contractAddress,
                 privateStateId: BOB_PRIVATE_ID,
                 circuitId: 'rsvp',
-                args: [bobAddress]
+                args: [bobAddress, bobPrivateState.secret]
             });
         logger.info(`Bob rsvp'd successfully!`);
 
@@ -182,6 +182,7 @@ describe('Private Party smart contract via midnight-js', () => {
 
         const aliceUnshielded: UnshieldedAddress = await aliceWallet.wallet.unshielded.getAddress();
         const aliceAddress: Uint8Array = encodeUserAddress(aliceUnshielded.hexString);
+        const alicePrivateState = await aliceProviders.privateStateProvider.get(ALICE_PRIVATE_ID);
 
         logger.info(`Alice tries to rsvp...`);
         await expect(async () => {
@@ -190,7 +191,7 @@ describe('Private Party smart contract via midnight-js', () => {
                 contractAddress,
                 privateStateId: ALICE_PRIVATE_ID,
                 circuitId: 'rsvp',
-                args: [{ bytes: aliceAddress }]
+                args: [{ bytes: aliceAddress }, alicePrivateState.secret]
             });
         }).rejects.toThrow();
         logger.info(`Alice was rejected!`);
@@ -212,7 +213,7 @@ describe('Private Party smart contract via midnight-js', () => {
                 contractAddress,
                 privateStateId: CLAIRE_PRIVATE_ID,
                 circuitId: 'rsvp',
-                args: [{ bytes: claireAddress }]
+                args: [{ bytes: claireAddress }, clairePrivateState.secret]
             });
         logger.info(`Claire successfully rsvp'd!`);
 
@@ -222,7 +223,8 @@ describe('Private Party smart contract via midnight-js', () => {
     });
     it('Blocks non-organizers from starting the party', async () => {
 
-        
+        const bobPrivateState = await bobProviders.privateStateProvider.get(BOB_PRIVATE_ID);
+
         logger.info(`Bob tries to start the party...`);
         await expect(async () => {
             await (submitCallTx<Contract, 'startParty'>)(bobProviders, {
@@ -230,6 +232,7 @@ describe('Private Party smart contract via midnight-js', () => {
                 contractAddress,
                 privateStateId: BOB_PRIVATE_ID,
                 circuitId: 'startParty',
+                args: [bobPrivateState.secret]
             });
         }).rejects.toThrow();
         logger.info(`Bob was rejected!`);
@@ -239,13 +242,16 @@ describe('Private Party smart contract via midnight-js', () => {
     });
     it('starts the party', async () => {
 
+        const alicePrivateState = await aliceProviders.privateStateProvider.get(ALICE_PRIVATE_ID);
+
         logger.info(`Alice starts the party...`);
         const txData: FinalizedCallTxData<Contract, 'startParty'> =
             await (submitCallTx<Contract, 'startParty'>)(aliceProviders, {
                 compiledContract: CompiledPartyContract,
                 contractAddress,
                 privateStateId: ALICE_PRIVATE_ID,
-                circuitId: 'startParty'
+                circuitId: 'startParty',
+                args: [alicePrivateState.secret]
             });
         logger.info(`Alice started the party successfully!`);
 
@@ -256,6 +262,7 @@ describe('Private Party smart contract via midnight-js', () => {
 
         const bobUnshielded = await bobWallet.wallet.unshielded.getAddress();
         const bobAddress = { bytes: new Uint8Array(bobUnshielded.data) };
+        const bobPrivateState = await bobProviders.privateStateProvider.get(BOB_PRIVATE_ID);
         
         logger.info(`Bob is checking in...`);
         const txData: FinalizedCallTxData<Contract, 'checkIn'> = 
@@ -264,7 +271,7 @@ describe('Private Party smart contract via midnight-js', () => {
                 contractAddress,
                 privateStateId: BOB_PRIVATE_ID,
                 circuitId: 'checkIn',
-                args: [bobAddress]
+                args: [bobAddress, bobPrivateState.secret]
             });
         logger.info(`Bob has successfully checked in and is now public!`);
 
@@ -275,6 +282,8 @@ describe('Private Party smart contract via midnight-js', () => {
     });
     it('Blocks non-organizers from closing the doors', async () => {
 
+        const bobPrivateState = await bobProviders.privateStateProvider.get(BOB_PRIVATE_ID);
+
         logger.info(`Bob is attempting to close the doors...`);
         await expect(async () => {
             await (submitCallTx<Contract, 'closeEntry'>)(bobProviders, {
@@ -282,6 +291,7 @@ describe('Private Party smart contract via midnight-js', () => {
                 contractAddress,
                 privateStateId: BOB_PRIVATE_ID,
                 circuitId: 'closeEntry',
+                args: [bobPrivateState.secret]
             });
         }).rejects.toThrow();
         logger.info(`Bob was rejected!`);
@@ -291,13 +301,16 @@ describe('Private Party smart contract via midnight-js', () => {
     });
     it('Closes the doors to the party', async () => {
 
+        const alicePrivateState = await aliceProviders.privateStateProvider.get(ALICE_PRIVATE_ID);
+
         logger.info(`Alice is closing the doors...`);
         const txData: FinalizedCallTxData<Contract, 'closeEntry'> =
             await (submitCallTx<Contract, 'closeEntry'>)(aliceProviders, {
                 compiledContract: CompiledPartyContract,
                 contractAddress,
                 privateStateId: ALICE_PRIVATE_ID,
-                circuitId: 'closeEntry'
+                circuitId: 'closeEntry',
+                args: [alicePrivateState.secret]
             });
         logger.info(`Alice has successfully closed the doors!`);
 
@@ -308,6 +321,7 @@ describe('Private Party smart contract via midnight-js', () => {
 
         const aliceUnshielded: UnshieldedAddress = await aliceWallet.wallet.unshielded.getAddress();
         const aliceAddress: Uint8Array = encodeUserAddress(aliceUnshielded.hexString);
+        const alicePrivateState = await aliceProviders.privateStateProvider.get(ALICE_PRIVATE_ID);
 
         const balanceBefore = await getNightBalance(aliceWallet);
         logger.info(`Alice NIGHT balance before claimFees: ${balanceBefore}`);
@@ -319,7 +333,7 @@ describe('Private Party smart contract via midnight-js', () => {
                 contractAddress,
                 privateStateId: ALICE_PRIVATE_ID,
                 circuitId: 'claimFees',
-                args: [{ bytes: aliceAddress }]
+                args: [{ bytes: aliceAddress }, alicePrivateState.secret]
             });
         logger.info(`Alice has successfully claimed fees!`);
 
@@ -341,7 +355,7 @@ describe('Private Party smart contract via midnight-js', () => {
                 compiledContract: CompiledPartyContract,
                 privateStateId: ALICE_PRIVATE_ID,
                 initialPrivateState: alicePrivateState,
-                args: [PARTY_SIZE, FEE]
+                args: [PARTY_SIZE, FEE, alicePrivateState.secret]
             });
         
         const pendingAddress = unprovenData.public?.contractAddress;
