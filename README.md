@@ -10,6 +10,8 @@ This example aims to demonstrate several key features of Compact and Midnight JS
 - MidnightJS balance checks
 - MidnightJS manual contract deployment (local, prove, balance, submit, finalize)
 
+This repository is part of the tutorial flow in the Midnight documentation. Instructions below will complete the repository.
+
 ## Set up project
 
 ```bash
@@ -20,6 +22,136 @@ Install dependencies:
 
 ```bash 
 yarn install
+```
+
+Create the contract file:
+```bash
+cd contract && touch private-party.compact
+```
+
+Populate the contract file:
+```
+pragma language_version 0.23;
+import CompactStandardLibrary;
+
+export enum PartyState {
+    NOT_STARTED,
+    READY,
+    STARTED,
+    DOORS_CLOSED,
+    FEES_CLAIMED
+}
+
+export sealed ledger organizer: Bytes<32>;
+export sealed ledger maxListSize: Uint<16>;
+export sealed ledger entryFee: Uint<16>;
+export ledger partyState: PartyState;
+export ledger hashedPartyGoers: Set<Bytes<32>>;
+export ledger checkedInParty: Set<UserAddress>;
+
+constructor (partySize: Uint<16>, fee: Uint<16>, _secret: Bytes<32>) {
+    assert(partySize > 0, "The party size must be greater than zero");
+    assert(fee > 0, "Fee must be greater than zero");
+
+    const pubKey = getDappPublicKey(_secret);
+    organizer = disclose(pubKey);
+
+    entryFee = disclose(fee);
+    maxListSize = disclose(partySize);
+    partyState = PartyState.NOT_STARTED;
+}
+
+// called by party goers
+export circuit rsvp(_address: UserAddress, _secret: Bytes<32>): [] {
+    const pubKey = getDappPublicKey(_secret);
+    // caller authentication check
+    assert(pubKey != organizer, "Organizer cannot RSVP to the party");
+
+    // state verification check
+    assert(partyState == PartyState.NOT_STARTED, "The party has already started");
+    assert(hashedPartyGoers.size() < maxListSize, "The list is full");
+
+    // party goer address remains private
+    const commitHash = commitAddress(_secret, _address.bytes);
+    assert(!hashedPartyGoers.member(commitHash), "You are already on the list");
+    hashedPartyGoers.insert(commitHash);// doesn't need disclose bc persistentCommit
+
+    if (hashedPartyGoers.size() == maxListSize) {
+        // @TODO -- In the future, emit an event to the organizer here (MIP-0002)
+        partyState = PartyState.READY;
+    }
+}
+
+// start the party (organizer)
+export circuit startParty(_secret: Bytes<32>): [] {
+    const pubKey = getDappPublicKey(_secret);
+    assert(organizer == pubKey, "Only the organizer can start the party");
+    assert(partyState == PartyState.READY || partyState == PartyState.NOT_STARTED, 
+        "The party is not in the correct state for this operation");
+
+    partyState = PartyState.STARTED;
+}
+
+// called by the party goer, so the payment can be prompted to the caller
+// after the execution of this circuit, party goers are public
+export circuit checkIn(address: UserAddress, _secret: Bytes<32>): [] {
+    // state verification checks
+    assert(partyState == PartyState.STARTED, "The party has not been started. Call the party police");
+    assert(checkedInParty.size() < hashedPartyGoers.size(), "All guests have already checked in");
+
+    const commitHash = commitAddress(_secret, address.bytes);
+
+    // caller verification checks
+    assert(hashedPartyGoers.member(commitHash), "You are not on the list");
+    assert(!checkedInParty.member(disclose(address)), "You have already checked in");
+   
+    // take in unshielded payment, party goers are now public
+    receiveUnshielded(nativeToken(), entryFee as Uint<128>);
+    checkedInParty.insert(disclose(address));
+
+    if(checkedInParty.size() == maxListSize) {
+        partyState = PartyState.DOORS_CLOSED;
+    }
+}
+
+export circuit closeEntry(_secret: Bytes<32>): [] {
+    const pubKey = getDappPublicKey(_secret);
+    assert(organizer == pubKey, "Only organizer can close the doors");
+    assert(partyState == PartyState.STARTED, "Party in wrong state");
+
+    partyState = PartyState.DOORS_CLOSED;
+}
+
+export circuit claimFees(address: UserAddress, _secret: Bytes<32>): [] {
+    const pubKey = getDappPublicKey(_secret);
+    assert(organizer == pubKey, "You are not the organizer");
+
+    // state verification checks
+    assert(partyState == PartyState.DOORS_CLOSED, "The doors are not yet closed");
+    assert(checkedInParty.size() > 0, "No fees to claim");
+
+    // calculate contract balance of NIGHT tokens
+    const totalCollected = checkedInParty.size() * entryFee;
+    assert(unshieldedBalanceGte(nativeToken(), totalCollected), "Contract balance wrong");
+
+    // send to organizer, they are now public
+    sendUnshielded(
+        nativeToken(),
+        disclose(totalCollected) as Uint<128>,
+        right<ContractAddress, UserAddress>(disclose(address))
+    );
+    partyState = PartyState.FEES_CLAIMED;
+}
+
+circuit commitAddress(_address: Bytes<32>, _secret: Bytes<32>): Bytes<32> {
+    return persistentCommit<Bytes<32>>(_address, _secret);
+}
+
+// hash a publicKey specific to this DApp so that users cannot be tracked
+// the _secret should be a highly complex one
+circuit getDappPublicKey(_secret: Bytes<32>): Bytes<32> {
+    return persistentHash<Vector<2, Bytes<32>>>([pad(32, "private-party:pk:"), _secret]);
+}
 ```
 
 ## Compile the contract
@@ -41,7 +173,6 @@ yarn test:local
 ```
 
 The test script will begin to display output from your local devnet and test suite. The tests will progress the contract deployment and interaction programmatically:
-
 ```
 [19:24:30.625] INFO (16883): Wallet sync [47]: shielded=true, unshielded=true, dust=true
 [19:24:30.625] INFO (16883): Wallet sync complete after 47 emissions
@@ -90,13 +221,11 @@ The test script will begin to display output from your local devnet and test sui
 ```
 
 To run the zkir linter, from the project root run:
-
 ```bash
 npx compact-zkir-lint -r contract/managed/private-party/zkir
 ```
 
-The output should look like this:
-
+Successful output:
 ```bash
 zkir-lint: scanned 5 file(s)
 

@@ -22,11 +22,9 @@ export {
     pureCircuits,
     PartyState,
     type Ledger,
-    //type Witnesses,
     type ImpureCircuits,
     type PureCircuits,
 } from './managed/private-party/contract/index.js';
-//import { witnesses } from './witnesses.js';
 import { Contract } from './managed/private-party/contract/index.js';
 
 const currentDir = path.resolve(new URL(import.meta.url).pathname, '..');

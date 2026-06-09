@@ -13,8 +13,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// import type { WitnessContext } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
-// import { PartyState, type Ledger } from './managed/private-party/contract/index.js';
+// This file typically holds witness implementations and private state. There are
+// no witnesses in this Dapp, so only the private state components are present.
 
 export type PartyPrivateState = {
     secret: Uint8Array,
@@ -23,14 +23,3 @@ export type PartyPrivateState = {
 export const createPartyPrivateState = (secret: Uint8Array) => ({
     secret
 });
-
-// export const witnesses = {
-//     localSecret: ({
-//         privateState
-//     }: WitnessContext<Ledger, PartyPrivateState>): [
-//         PartyPrivateState,
-//         Uint8Array,
-//     ] => {
-//         return [privateState, privateState.secret]
-//     }
-// };
