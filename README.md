@@ -252,4 +252,12 @@ zkir-lint: scanned 5 file(s)
 0 error(s), 0 warning(s), 0 info(s) | 5/5 clean
 ```
 
-This repository is currently only set up to support a local devnet running via Docker. The configurations for other networks and handling of those configs can be set up in `config.ts` and supporting files to enable their operation.
+## Deploy to Live Testnet
+
+The test suite uses three wallets (Alice, Bob, Claire). On the local devnet, all three are pre-funded genesis wallets. On a live testnet you must supply and fund three distinct wallets — one per role.
+
+To run this test script on Preview or Preprod:
+1. Generate three wallets on the given network and fund each with tNIGHT and tDUST. See [Environments and endpoints](https://docs.midnight.network/relnotes/network) for faucet links.
+1. Create `.env.<network>` and populate it based on `.env.<network>.example` in this repository. Each role (`ALICE`, `BOB`, `CLAIRE`) needs ONE of `MIDNIGHT_<NETWORK>_<ROLE>_MNEMONIC` or `MIDNIGHT_<NETWORK>_<ROLE>_SEED`.
+1. Start the proof server: `yarn proof:up`
+1. Start the test: `yarn test:preview` or `yarn test:preprod` — each wallet will sync to the network, the faucet will drip and register DUST if needed, and the test suite will advance programmatically.

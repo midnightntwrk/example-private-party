@@ -4,3 +4,6 @@
 /contract/managed
 /.yarn
 /contract/private-party.compact
+/.midnight-expert
+.env.preview
+.env.preprod

@@ -10,8 +10,12 @@
     "compile": "compact compile contract/private-party.compact contract/managed/private-party",
     "test": "NODE_OPTIONS='--experimental-vm-modules' vitest run",
     "test:local": "MIDNIGHT_NETWORK=local yarn test",
+    "test:preview": "MIDNIGHT_NETWORK=preview yarn test",
+    "test:preprod": "MIDNIGHT_NETWORK=preprod yarn test",
     "env:up": "docker compose up -d --wait",
     "env:down": "docker compose down",
+    "proof:up": "docker compose up -d --wait proof-server",
+    "proof:down": "docker compose stop proof-server",
     "wait:dust": "vite-node scripts/wait-for-dust.ts",
     "validate": "yarn env:up && yarn test:local; yarn env:down"
   },
