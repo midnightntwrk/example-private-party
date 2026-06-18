@@ -41,13 +41,13 @@ const logger = pino({
     transport: { target: 'pino-pretty' },
 });
 
-type Role = 'ALICE' | 'BOB' | 'CLAIRE';
+type Role = 'ALICE' | 'BOB' | 'CHARLIE';
 
 // Genesis seeds for the local dev node — pre-funded, used only on `local`.
 const LOCAL_SEEDS: Record<Role, string> = {
     ALICE: '0000000000000000000000000000000000000000000000000000000000000001',
     BOB:   '0000000000000000000000000000000000000000000000000000000000000002',
-    CLAIRE:'0000000000000000000000000000000000000000000000000000000000000003',
+    CHARLIE:'0000000000000000000000000000000000000000000000000000000000000003',
 };
 
 function resolveSecret(net: string, role: Role): WalletSecret {
@@ -86,16 +86,16 @@ const network = process.env['MIDNIGHT_NETWORK'] ?? 'local';
 describe(`Private Party smart contract via midnight-js (${network})`, () => {
     let aliceWallet: MidnightWalletProvider;
     let bobWallet: MidnightWalletProvider;
-    let claireWallet: MidnightWalletProvider;
+    let charlieWallet: MidnightWalletProvider;
     let aliceProviders: PartyProviders;
     let bobProviders: PartyProviders;
-    let claireProviders: PartyProviders;
+    let charlieProviders: PartyProviders;
     let contractAddress: ContractAddress;
 
     const config = getConfig();
     const aliceSecret = resolveSecret(network, 'ALICE');
     const bobSecret = resolveSecret(network, 'BOB');
-    const claireSecret = resolveSecret(network, 'CLAIRE');
+    const charlieSecret = resolveSecret(network, 'CHARLIE');
     const isRemote = config.faucet !== '';
     const syncTimeoutMs = Number(
         process.env['MIDNIGHT_SYNC_TIMEOUT_MS'] ??
@@ -104,7 +104,7 @@ describe(`Private Party smart contract via midnight-js (${network})`, () => {
 
     const ALICE_PRIVATE_ID = 'PartyPrivateState';
     const BOB_PRIVATE_ID = 'BobPartyPrivateState';
-    const CLAIRE_PRIVATE_ID = 'ClairePartyPrivateState';
+    const CHARLIE_PRIVATE_ID = 'CharliePartyPrivateState';
 
     async function queryLedger(providers: PartyProviders) {
         const state =
@@ -145,16 +145,16 @@ describe(`Private Party smart contract via midnight-js (${network})`, () => {
         await bobWallet.start();
         await syncWallet(logger, bobWallet.wallet, syncTimeoutMs);
 
-        claireWallet = await MidnightWalletProvider.build(logger, envConfig, claireSecret);
-        await claireWallet.start();
-        await syncWallet(logger, claireWallet.wallet, syncTimeoutMs);
+        charlieWallet = await MidnightWalletProvider.build(logger, envConfig, charlieSecret);
+        await charlieWallet.start();
+        await syncWallet(logger, charlieWallet.wallet, syncTimeoutMs);
 
         if (isRemote) {
             // Faucet drip + NIGHT→DUST registration per wallet. Idempotent.
             for (const [name, w] of [
                 ['Alice', aliceWallet],
                 ['Bob', bobWallet],
-                ['Claire', claireWallet],
+                ['Charlie', charlieWallet],
             ] as const) {
                 const nightBalance = await waitForFunds(
                     w.wallet,
@@ -172,8 +172,8 @@ describe(`Private Party smart contract via midnight-js (${network})`, () => {
         bobProviders = buildProviders(bobWallet, zkConfigPath, config);
         logger.info(`Bob providers successfully initialized`);
 
-        claireProviders = buildProviders(claireWallet, zkConfigPath, config);
-        logger.info(`Claire providers successfully initialized`);
+        charlieProviders = buildProviders(charlieWallet, zkConfigPath, config);
+        logger.info(`Charlie providers successfully initialized`);
     });
 
     afterAll(async () => {
@@ -185,9 +185,9 @@ describe(`Private Party smart contract via midnight-js (${network})`, () => {
             logger.info('Stopping Bob wallet...');
             await bobWallet.stop();
         }
-        if(claireWallet) {
-            logger.info('Stopping Claire wallet...');
-            await claireWallet.stop();
+        if(charlieWallet) {
+            logger.info('Stopping Charlie wallet...');
+            await charlieWallet.stop();
         }
     });
     it('Deploys a contract (the easy way)', async () => {
@@ -260,28 +260,28 @@ describe(`Private Party smart contract via midnight-js (${network})`, () => {
         }).rejects.toThrow();
         logger.info(`Alice was rejected!`);
     });
-    it('Allows Claire to rsvp(privately)', async () => {
+    it('Allows Charlie to rsvp(privately)', async () => {
 
-        const claireInitialPrivateState = createPartyPrivateState(randomBytes(32));
-        claireProviders.privateStateProvider.setContractAddress(contractAddress);
-        await claireProviders.privateStateProvider.set(CLAIRE_PRIVATE_ID, claireInitialPrivateState);
-        const clairePrivateState = await claireProviders.privateStateProvider.get(CLAIRE_PRIVATE_ID);
+        const charlieInitialPrivateState = createPartyPrivateState(randomBytes(32));
+        charlieProviders.privateStateProvider.setContractAddress(contractAddress);
+        await charlieProviders.privateStateProvider.set(CHARLIE_PRIVATE_ID, charlieInitialPrivateState);
+        const charliePrivateState = await charlieProviders.privateStateProvider.get(CHARLIE_PRIVATE_ID);
 
-        const claireUnshielded: UnshieldedAddress = await claireWallet.wallet.unshielded.getAddress();
-        const claireAddress: Uint8Array = encodeUserAddress(claireUnshielded.hexString);
+        const charlieUnshielded: UnshieldedAddress = await charlieWallet.wallet.unshielded.getAddress();
+        const charlieAddress: Uint8Array = encodeUserAddress(charlieUnshielded.hexString);
 
-        logger.info(`Claire is attempting to rsvp...`);
+        logger.info(`Charlie is attempting to rsvp...`);
         const txData: FinalizedCallTxData<Contract, 'rsvp'> = 
-            await (submitCallTx<Contract, 'rsvp'>)(claireProviders, {
+            await (submitCallTx<Contract, 'rsvp'>)(charlieProviders, {
                 compiledContract: CompiledPartyContract,
                 contractAddress,
-                privateStateId: CLAIRE_PRIVATE_ID,
+                privateStateId: CHARLIE_PRIVATE_ID,
                 circuitId: 'rsvp',
-                args: [{ bytes: claireAddress }, clairePrivateState.secret]
+                args: [{ bytes: charlieAddress }, charliePrivateState.secret]
             });
-        logger.info(`Claire successfully rsvp'd!`);
+        logger.info(`Charlie successfully rsvp'd!`);
 
-        const state = await queryLedger(claireProviders);
+        const state = await queryLedger(charlieProviders);
         expect(state.hashedPartyGoers.size()).toEqual(2n);
         expect(state.partyState).toEqual(PartyState.NOT_STARTED);
     });
