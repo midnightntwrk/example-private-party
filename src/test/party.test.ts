@@ -17,8 +17,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { randomBytes } from 'node:crypto';
 import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import { createUnprovenDeployTx, deployContract, submitCallTx, type DeployedContract } from '@midnight-ntwrk/midnight-js-contracts';
-import type { ContractAddress } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
-import { encodeUserAddress } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
+import { type ContractAddress, encodeUserAddress } from '@midnight-ntwrk/midnight-js-protocol/compact-runtime';
 import pino from 'pino';
 
 import { getConfig } from '../config.js';
@@ -34,7 +33,7 @@ import {
 import { createPartyPrivateState } from '../../contract/witnesses.js'
 import { type EnvironmentConfiguration, waitForFunds } from '@midnight-ntwrk/testkit-js';
 import type { FinalizedCallTxData, UnsubmittedDeployTxData } from '@midnight-ntwrk/midnight-js-contracts';
-import type { UnshieldedAddress } from '@midnight-ntwrk/wallet-sdk/address-format';
+import type { UnshieldedAddress } from '@midnight-ntwrk/wallet-sdk';
 
 const logger = pino({
     level: process.env['LOG_LEVEL'] ?? 'info',
