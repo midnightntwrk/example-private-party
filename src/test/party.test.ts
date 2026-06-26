@@ -34,7 +34,7 @@ import {
 import { createPartyPrivateState } from '../../contract/witnesses.js'
 import { type EnvironmentConfiguration, waitForFunds } from '@midnight-ntwrk/testkit-js';
 import type { FinalizedCallTxData, UnsubmittedDeployTxData } from '@midnight-ntwrk/midnight-js-contracts';
-import type { UnshieldedAddress } from '@midnight-ntwrk/wallet-sdk-address-format';
+import type { UnshieldedAddress } from '@midnight-ntwrk/wallet-sdk/address-format';
 
 const logger = pino({
     level: process.env['LOG_LEVEL'] ?? 'info',
