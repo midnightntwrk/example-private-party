@@ -27,8 +27,7 @@ import {
   type WalletProvider,
 } from '@midnight-ntwrk/midnight-js-types';
 import { ttlOneHour } from '@midnight-ntwrk/midnight-js-utils';
-import { type WalletFacade, type FacadeState } from '@midnight-ntwrk/wallet-sdk-facade';
-import { type UnshieldedKeystore } from '@midnight-ntwrk/wallet-sdk-unshielded-wallet';
+import type { WalletFacade, FacadeState, UnshieldedKeystore } from '@midnight-ntwrk/wallet-sdk';
 import {
   type DustWalletOptions,
   type EnvironmentConfiguration,
