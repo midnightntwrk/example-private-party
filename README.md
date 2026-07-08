@@ -257,7 +257,7 @@ zkir-lint: scanned 5 file(s)
 The test suite uses three wallets (Alice, Bob, Claire). On the local devnet, all three are pre-funded genesis wallets. On a live testnet you must supply and fund three distinct wallets — one per role.
 
 To run this test script on Preview or Preprod:
-1. Generate three wallets on the given network and fund each with tNIGHT and tDUST. See [Environments and endpoints](https://docs.midnight.network/relnotes/network) for faucet links.
+1. Generate three wallets on the given network and fund each manually via the network's faucet page — [Preview](https://midnight-tmnight-preview.nethermind.dev/) or [Preprod](https://midnight-tmnight-preprod.nethermind.dev/). The faucet is a human-facing web page (no programmatic drip endpoint), so the test suite assumes each seed you supply is already funded with tNIGHT. tDUST can be delegated in 1AM or Lace Carbon (coming soon). See [Environments and endpoints](https://docs.midnight.network/relnotes/network) for reference.
 1. Create `.env.<network>` and populate it based on `.env.<network>.example` in this repository. Each role (`ALICE`, `BOB`, `CLAIRE`) needs ONE of `MIDNIGHT_<NETWORK>_<ROLE>_MNEMONIC` or `MIDNIGHT_<NETWORK>_<ROLE>_SEED`.
 1. Start the proof server: `yarn proof:up`
-1. Start the test: `yarn test:preview` or `yarn test:preprod` — each wallet will sync to the network, the faucet will drip and register DUST if needed, and the test suite will advance programmatically.
+1. Start the test: `yarn test:preview` or `yarn test:preprod` — each wallet will sync to the network, register NIGHT→DUST if needed, and the test suite will advance programmatically.
