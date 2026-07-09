@@ -95,7 +95,7 @@ describe(`Private Party smart contract via midnight-js (${network})`, () => {
     const aliceSecret = resolveSecret(network, 'ALICE');
     const bobSecret = resolveSecret(network, 'BOB');
     const charlieSecret = resolveSecret(network, 'CHARLIE');
-    const isRemote = config.faucet !== '';
+    const isRemote = network !== 'local';
     const syncTimeoutMs = Number(
         process.env['MIDNIGHT_SYNC_TIMEOUT_MS'] ??
             (isRemote ? 60 * 60_000 : 10 * 60_000),
@@ -149,7 +149,7 @@ describe(`Private Party smart contract via midnight-js (${network})`, () => {
         await syncWallet(logger, charlieWallet.wallet, syncTimeoutMs);
 
         if (isRemote) {
-            // Faucet drip + NIGHT→DUST registration per wallet. Idempotent.
+            // NIGHT→DUST registration per wallet. Seeds are pre-funded; idempotent.
             for (const [name, w] of [
                 ['Alice', aliceWallet],
                 ['Bob', bobWallet],
@@ -158,7 +158,7 @@ describe(`Private Party smart contract via midnight-js (${network})`, () => {
                 const nightBalance = await waitForFunds(
                     w.wallet,
                     envConfig,
-                    true,
+                    false,
                     w.unshieldedKeystore,
                 );
                 logger.info(`${name} NIGHT balance on '${network}': ${nightBalance}`);
