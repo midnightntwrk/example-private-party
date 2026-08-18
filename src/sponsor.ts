@@ -15,7 +15,7 @@
 
 /**
  * DUST fee sponsorship — reference implementation.
- * ------------------------------------------------
+ *
  * On Midnight, transaction fees are paid in DUST, and DUST is *generated* by NIGHT
  * that has been registered for DUST generation. It is not transferable. So a wallet
  * holding unregistered NIGHT — or no NIGHT at all — has zero DUST and cannot submit
@@ -57,7 +57,7 @@ import type { MidnightWalletProvider } from './wallet.js';
  * USER SIDE. Runs wherever the user's keys live — a browser wallet, a CLI, a test.
  *
  * Builds the circuit call, proves it, balances only the user's own value side, signs
- * and binds it. Returns hex: an opaque, tamper-evident blob to hand to a sponsor.
+ * and binds it, and returns the bound transaction as hex for a sponsor to pay for.
  *
  * Note what is NOT here: no DUST, no fee estimation, no sponsor keys. A wallet with
  * zero DUST can run every line of this function.
@@ -74,13 +74,13 @@ export async function prepareSponsoredCall<
   logger.info(`[user] building ${String(call.circuitId)}()...`);
   const unsubmitted = await createUnprovenCallTx<C, PCK>(providers, call);
 
-  // The USER generates the proof. This is what keeps the sponsor out of the user's
-  // private inputs — the secret that authenticates the caller never leaves here.
+  // Proving happens here, on the user's side — which is why the secret that
+  // authenticates the caller never reaches the sponsor.
   logger.info(`[user] proving ${String(call.circuitId)}()...`);
   const unboundTx = await providers.proofProvider.proveTx(unsubmitted.private.unprovenTx);
 
-  // Balance the user's OWN value side only (for checkIn, this pays the entry fee),
-  // then sign and bind. After this the transaction is sealed.
+  // Where a circuit moves user value — checkIn's entry fee — that value is paid
+  // from the user's own balance, here.
   logger.info('[user] balancing own value side (no DUST) and binding...');
   const finalized = await user.balanceOwnValueAndFinalize(unboundTx);
 

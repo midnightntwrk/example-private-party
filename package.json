@@ -17,7 +17,7 @@
     "proof:up": "docker compose up -d --wait proof-server",
     "proof:down": "docker compose stop proof-server",
     "wait:dust": "vite-node scripts/wait-for-dust.ts",
-    "test:sponsorship": "MIDNIGHT_NETWORK=local NODE_OPTIONS='--experimental-vm-modules' vitest run src/test/sponsorship.test.ts",
+    "test:sponsorship": "yarn test:local src/test/sponsorship.test.ts",
     "sponsor:serve": "vite-node scripts/sponsor-service.ts",
     "validate": "yarn env:up && yarn test:local; yarn env:down"
   },

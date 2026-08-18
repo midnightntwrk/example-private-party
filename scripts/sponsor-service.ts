@@ -15,7 +15,7 @@
 
 /**
  * Standalone DUST fee sponsorship service.
- * ----------------------------------------
+ *
  * Shows the production shape of sponsorship: the user's client builds, proves,
  * balances and BINDS its own transaction, then POSTs the resulting hex here; this
  * service attaches a DUST fee offer paid from its own wallet and submits.
@@ -31,7 +31,7 @@
  * own contract before paying for it. None of that is implemented here.
  */
 
-import { createServer } from 'node:http';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import pino from 'pino';
 import { setNetworkId } from '@midnight-ntwrk/midnight-js-network-id';
 import type { EnvironmentConfiguration } from '@midnight-ntwrk/testkit-js';
@@ -57,8 +57,14 @@ const sponsor = await MidnightWalletProvider.build(logger, envConfig, {
   kind: 'seed',
   value: process.env['MIDNIGHT_SPONSOR_SEED'] ?? DEFAULT_SPONSOR_SEED,
 });
-await sponsor.start();
-await syncWallet(logger, sponsor.wallet, 300_000);
+try {
+  await sponsor.start();
+  await syncWallet(logger, sponsor.wallet, 300_000);
+} catch (err) {
+  logger.error(`Sponsor wallet failed to start: ${String(err)}`);
+  await sponsor.stop().catch(() => {});
+  process.exit(1);
+}
 
 const dust = await sponsor.getDustBalance();
 logger.info(`Sponsor DUST balance: ${dust} SPECK`);
@@ -69,21 +75,25 @@ if (dust === 0n) {
   );
 }
 
-function send(res: import('node:http').ServerResponse, status: number, body: unknown): void {
-  const payload = JSON.stringify(body);
+function send(res: ServerResponse, status: number, body: unknown): void {
+  if (res.writableEnded) return;
   res.writeHead(status, { 'content-type': 'application/json' });
-  res.end(payload);
+  res.end(JSON.stringify(body));
 }
 
-function readBody(req: import('node:http').IncomingMessage): Promise<string> {
+class BodyTooLargeError extends Error {}
+
+function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
     req.on('data', (chunk: Buffer) => {
       size += chunk.length;
       if (size > MAX_BODY_BYTES) {
-        reject(new Error(`Request body exceeds ${MAX_BODY_BYTES} bytes`));
-        req.destroy();
+        // Deliberately no req.destroy() here: it tears down the shared socket, and
+        // the 413 we still want to send would never reach the client.
+        req.pause();
+        reject(new BodyTooLargeError(`Request body exceeds ${MAX_BODY_BYTES} bytes`));
         return;
       }
       chunks.push(chunk);
@@ -93,42 +103,44 @@ function readBody(req: import('node:http').IncomingMessage): Promise<string> {
   });
 }
 
+async function handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  if (req.method === 'GET' && req.url === '/health') {
+    send(res, 200, { status: 'ok', dust: (await sponsor.getDustBalance()).toString() });
+    return;
+  }
+
+  if (req.method === 'POST' && req.url === '/sponsor') {
+    let txHex: unknown;
+    try {
+      ({ tx: txHex } = JSON.parse(await readBody(req)) as { tx?: unknown });
+    } catch (err) {
+      const status = err instanceof BodyTooLargeError ? 413 : 400;
+      send(res, status, { success: false, error: `Invalid request body: ${String(err)}` });
+      return;
+    }
+    if (typeof txHex !== 'string' || !/^[0-9a-fA-F]+$/.test(txHex) || txHex.length % 2 !== 0) {
+      send(res, 400, {
+        success: false,
+        error: "Field 'tx' must be a hex-encoded FinalizedTransaction (no 0x prefix).",
+      });
+      return;
+    }
+
+    const txId = await sponsorAndSubmit(logger, sponsor, txHex);
+    send(res, 200, { success: true, txId });
+    return;
+  }
+
+  send(res, 404, { success: false, error: 'Not found. Try GET /health or POST /sponsor.' });
+}
+
 const server = createServer((req, res) => {
-  void (async () => {
-    if (req.method === 'GET' && req.url === '/health') {
-      send(res, 200, { status: 'ok', dust: (await sponsor.getDustBalance()).toString() });
-      return;
-    }
-
-    if (req.method === 'POST' && req.url === '/sponsor') {
-      let txHex: unknown;
-      try {
-        ({ tx: txHex } = JSON.parse(await readBody(req)) as { tx?: unknown });
-      } catch (err) {
-        send(res, 400, { success: false, error: `Invalid request body: ${String(err)}` });
-        return;
-      }
-      if (typeof txHex !== 'string' || !/^[0-9a-fA-F]+$/.test(txHex) || txHex.length % 2 !== 0) {
-        send(res, 400, {
-          success: false,
-          error: "Field 'tx' must be a hex-encoded FinalizedTransaction (no 0x prefix).",
-        });
-        return;
-      }
-
-      try {
-        // The one line that matters. Everything else here is plumbing.
-        const txId = await sponsorAndSubmit(logger, sponsor, txHex);
-        send(res, 200, { success: true, txId });
-      } catch (err) {
-        logger.error(`Sponsorship failed: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
-        send(res, 500, { success: false, error: err instanceof Error ? err.message : String(err) });
-      }
-      return;
-    }
-
-    send(res, 404, { success: false, error: 'Not found. Try GET /health or POST /sponsor.' });
-  })();
+  // Every rejection must be caught here. An escaping one is an unhandled rejection,
+  // which takes the whole service down and with it every other in-flight request.
+  handle(req, res).catch((err: unknown) => {
+    logger.error(`${req.method} ${req.url} failed: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
+    send(res, 500, { success: false, error: err instanceof Error ? err.message : String(err) });
+  });
 });
 
 server.listen(port, () => logger.info(`Sponsor service listening on http://localhost:${port}`));

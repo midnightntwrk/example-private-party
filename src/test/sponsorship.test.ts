@@ -139,9 +139,11 @@ describe(`DUST fee sponsorship — Alice pays Dave's fees (${network})`, () => {
             const current = await getNightBalance(walletProvider);
             stableFor = current === previous ? stableFor + 1 : 0;
             previous = current;
-            if (stableFor >= 2) break;
+            if (stableFor >= 2) return previous;
         }
-        return previous;
+        throw new Error(
+            `NIGHT balance never settled (last value ${previous} after ${attempts * 3}s).`,
+        );
     }
 
     beforeAll(async () => {
@@ -192,9 +194,16 @@ describe(`DUST fee sponsorship — Alice pays Dave's fees (${network})`, () => {
                 const aliceDustBefore = await aliceWallet.getDustBalance();
                 await aliceWallet.transferNight(daveUnshielded, DAVE_NIGHT);
 
+                let funded = false;
                 for (let i = 0; i < 60; i++) {
                     await new Promise((resolve) => setTimeout(resolve, 3_000));
-                    if ((await getNightBalance(daveWallet)) > daveNightBefore) break;
+                    if ((await getNightBalance(daveWallet)) > daveNightBefore) {
+                        funded = true;
+                        break;
+                    }
+                }
+                if (!funded) {
+                    throw new Error("Dave's NIGHT balance did not increase within 180s of the transfer.");
                 }
                 const aliceDustAfter = await aliceWallet.getDustBalance();
                 logger.info(
@@ -252,13 +261,11 @@ describe(`DUST fee sponsorship — Alice pays Dave's fees (${network})`, () => {
 
         const dust = await daveWallet.getDustBalance();
         logger.info(`Dave DUST: ${dust}`);
-        expect(dust).toBe(0n);
-        if (dust !== 0n) {
-            throw new Error(
-                'Dave has DUST — the sponsorship demo requires a wallet with none. ' +
-                    `Fund MIDNIGHT_${network.toUpperCase()}_DAVE_SEED with tNIGHT but do not delegate DUST to it.`,
-            );
-        }
+        expect(
+            dust,
+            'Dave has DUST — the sponsorship demo requires a wallet with none. Fund ' +
+                `MIDNIGHT_${network.toUpperCase()}_DAVE_SEED with tNIGHT but do not delegate DUST to it.`,
+        ).toBe(0n);
     });
 
     it("Dave cannot pay for his own RSVP", async () => {
@@ -276,7 +283,9 @@ describe(`DUST fee sponsorship — Alice pays Dave's fees (${network})`, () => {
         // The ordinary path balances everything, DUST included. Dave has none, so
         // there is no fee he can offer and balancing cannot succeed.
         logger.info('Dave tries to pay his own fees...');
-        await expect(daveWallet.balanceTx(unboundTx)).rejects.toThrow();
+        await expect(daveWallet.balanceTx(unboundTx)).rejects.toThrow(
+            /could not balance dust/i,
+        );
         logger.info('Dave was rejected — he has no DUST to pay a fee with.');
     });
 
@@ -301,9 +310,8 @@ describe(`DUST fee sponsorship — Alice pays Dave's fees (${network})`, () => {
         expect(after.hashedPartyGoers.size()).toEqual(before.hashedPartyGoers.size() + 1n);
         expect(after.partyState).toEqual(PartyState.NOT_STARTED);
 
-        // Dave still has no DUST — he never paid a fee.
         expect(await daveWallet.getDustBalance()).toBe(0n);
-        logger.info("Dave RSVP'd without ever holding a single unit of DUST.");
+        logger.info("Dave RSVP'd without ever holding any DUST.");
     });
 
     it('Alice starts the party', async () => {
@@ -324,10 +332,9 @@ describe(`DUST fee sponsorship — Alice pays Dave's fees (${network})`, () => {
     });
 
     it('Alice cannot check in as Dave', async () => {
-        // Alice pays for every transaction here, and she still cannot act as Dave.
-        // `checkIn` recomputes commitAddress(_secret, address.bytes) and requires the
-        // result to be on the RSVP list. That commitment binds Dave's SECRET, which
-        // Alice does not have — paying the fee confers no authority whatsoever.
+        // `checkIn` requires commitAddress(_secret, address.bytes) to be on the RSVP
+        // list. That commitment binds Dave's secret, which Alice does not have — so
+        // paying every one of his fees still confers no authority to act as him.
         const alicePrivateState = await aliceProviders.privateStateProvider.get(ALICE_PRIVATE_ID);
 
         logger.info("Alice tries to check in as Dave, using her own secret...");
@@ -364,10 +371,8 @@ describe(`DUST fee sponsorship — Alice pays Dave's fees (${network})`, () => {
         const daveDustAfter = await daveWallet.getDustBalance();
         const aliceDustAfter = await aliceWallet.getDustBalance();
 
-        // Deliberately console.log, not logger.info: pino's pino-pretty transport runs
-        // in a worker that vitest tears down at end-of-file, so logs emitted from the
-        // last test are lost. This summary is the point of the whole suite — it has to
-        // render. vitest captures console output synchronously.
+        // console.log, not logger.info: pino's pino-pretty transport runs in a worker
+        // that vitest tears down at end-of-file, so logs from the last test are lost.
         console.log(
             [
                 '',
@@ -381,16 +386,11 @@ describe(`DUST fee sponsorship — Alice pays Dave's fees (${network})`, () => {
             ].join('\n'),
         );
 
-        // The call really executed.
         const state = await queryLedger(aliceProviders);
         expect(state.checkedInParty.member(daveAddressArg)).toBeTruthy();
-
-        // Dave paid for his own ticket...
         expect(daveNightAfter).toEqual(daveNightBefore - FEE);
-        // ...but never paid a transaction fee.
         expect(daveDustBefore).toBe(0n);
         expect(daveDustAfter).toBe(0n);
-        // Alice did.
         expect(aliceDustAfter).toBeLessThan(aliceDustBefore);
     });
 });

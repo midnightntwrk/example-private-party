@@ -2,9 +2,9 @@
 
 ## What this shows
 
-On Midnight, transaction fees are paid in **DUST**. DUST is not transferable and cannot
-be bought — it is *generated* by NIGHT held under a public key that has been **registered
-for DUST generation**. The ledger keeps a Registration Table linking NIGHT public keys to
+On Midnight, transaction fees are paid in **DUST**. DUST is not transferable — it is
+*generated* by NIGHT held under a public key that has been **registered for DUST
+generation**. The ledger keeps a Registration Table linking NIGHT public keys to
 DUST public keys, and a DUST UTXO is created only when a NIGHT UTXO is created *and* its
 key has an entry in that table.
 
