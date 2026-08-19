@@ -63,7 +63,7 @@ try {
     wallet.wallet.state().pipe(
       tap((s) =>
         logger.info(
-          `dust: ${s.dust.availableCoins.length} coin(s), balance ${s.dust.balance(new Date())} STAR`,
+          `dust: ${s.dust.availableCoins.length} coin(s), balance ${s.dust.balance(new Date())} SPECK`,
         ),
       ),
       filter((s) => s.dust.availableCoins.length >= minCoins),

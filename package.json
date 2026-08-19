@@ -17,6 +17,8 @@
     "proof:up": "docker compose up -d --wait proof-server",
     "proof:down": "docker compose stop proof-server",
     "wait:dust": "vite-node scripts/wait-for-dust.ts",
+    "test:sponsorship": "yarn test:local src/test/sponsorship.test.ts",
+    "sponsor:serve": "vite-node scripts/sponsor-service.ts",
     "validate": "yarn env:up && yarn test:local; yarn env:down"
   },
   "dependencies": {
