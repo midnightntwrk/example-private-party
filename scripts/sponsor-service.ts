@@ -16,7 +16,7 @@
 /**
  * Standalone DUST fee sponsorship service.
  *
- * Shows the production shape of sponsorship: the user's client builds, proves,
+ * Shows the shape of sponsorship: the user's client builds, proves,
  * balances and BINDS its own transaction, then POSTs the resulting hex here; this
  * service attaches a DUST fee offer paid from its own wallet and submits.
  *
