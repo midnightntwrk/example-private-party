@@ -19,6 +19,7 @@ import {
   type EncPublicKey,
   type FinalizedTransaction,
   LedgerParameters,
+  nativeToken,
   ZswapSecretKeys,
 } from '@midnight-ntwrk/midnight-js-protocol/ledger';
 import {
@@ -27,7 +28,12 @@ import {
   type WalletProvider,
 } from '@midnight-ntwrk/midnight-js-types';
 import { ttlOneHour } from '@midnight-ntwrk/midnight-js-utils';
-import type { WalletFacade, FacadeState, UnshieldedKeystore } from '@midnight-ntwrk/wallet-sdk';
+import type {
+  WalletFacade,
+  FacadeState,
+  UnshieldedAddress,
+  UnshieldedKeystore,
+} from '@midnight-ntwrk/wallet-sdk';
 import {
   type DustWalletOptions,
   type EnvironmentConfiguration,
@@ -85,6 +91,107 @@ export class MidnightWalletProvider implements MidnightProvider, WalletProvider 
 
   submitTx(tx: FinalizedTransaction): Promise<string> {
     return this.wallet.submitTransaction(tx);
+  }
+
+  /**
+   * USER SIDE of fee sponsorship.
+   *
+   * Balances only the caller's OWN value side — shielded and unshielded — and
+   * deliberately NOT dust, then signs and finalizes (binds) the transaction.
+   *
+   * Finalizing here is the security-relevant step: the returned transaction is
+   * bound and signed by this wallet, so a sponsor receiving it can only ADD a
+   * DUST fee offer. It cannot change what the transaction does.
+   */
+  async balanceOwnValueAndFinalize(
+    tx: UnboundTransaction,
+    ttl: Date = ttlOneHour(),
+  ): Promise<FinalizedTransaction> {
+    const recipe = await this.wallet.balanceUnboundTransaction(
+      tx,
+      {
+        shieldedSecretKeys: this.zswapSecretKeys,
+        dustSecretKey: this.dustSecretKey,
+      },
+      { ttl, tokenKindsToBalance: ['shielded', 'unshielded'] },
+    );
+    const signed = await this.wallet.signRecipe(
+      recipe,
+      (payload) => this.unshieldedKeystore.signData(payload),
+    );
+    return await this.wallet.finalizeRecipe(signed);
+  }
+
+  /**
+   * SPONSOR SIDE of fee sponsorship.
+   *
+   * Takes a transaction the user has already proven, balanced, signed and bound,
+   * and attaches ONLY a DUST fee offer paid by this wallet. The user's proof and
+   * private inputs are never touched — this wallet has no way to read them.
+   */
+  async addDustFeesAndFinalize(
+    tx: FinalizedTransaction,
+    ttl: Date = ttlOneHour(),
+  ): Promise<FinalizedTransaction> {
+    const recipe = await this.wallet.balanceFinalizedTransaction(
+      tx,
+      {
+        shieldedSecretKeys: this.zswapSecretKeys,
+        dustSecretKey: this.dustSecretKey,
+      },
+      { ttl, tokenKindsToBalance: ['dust'] },
+    );
+    const signed = await this.wallet.signRecipe(
+      recipe,
+      (payload) => this.unshieldedKeystore.signData(payload),
+    );
+    return await this.wallet.finalizeRecipe(signed);
+  }
+
+  /**
+   * Current DUST balance at `now`, in SPECK (the atomic unit of DUST).
+   *
+   * Zero means this wallet cannot pay a fee for any transaction, no matter how
+   * much NIGHT it holds — which is exactly the condition fee sponsorship solves.
+   */
+  async getDustBalance(): Promise<bigint> {
+    const state = await this.wallet.waitForSyncedState();
+    return state.dust.balance(new Date());
+  }
+
+  /**
+   * Sends unshielded NIGHT to another wallet, paying this wallet's own fees.
+   *
+   * Whether the NIGHT sent here goes on to generate DUST depends entirely on the
+   * RECIPIENT's key: the ledger creates a DUST UTXO only when a NIGHT UTXO is
+   * created under a key that already has an entry in its Registration Table. So an
+   * unregistered recipient ends up holding NIGHT while still having zero DUST —
+   * which is exactly the precondition the sponsorship demo needs.
+   */
+  async transferNight(
+    to: UnshieldedAddress,
+    amount: bigint,
+    ttl: Date = ttlOneHour(),
+  ): Promise<string> {
+    const recipe = await this.wallet.transferTransaction(
+      [
+        {
+          type: 'unshielded',
+          outputs: [{ type: nativeToken().raw, receiverAddress: to, amount }],
+        },
+      ],
+      {
+        shieldedSecretKeys: this.zswapSecretKeys,
+        dustSecretKey: this.dustSecretKey,
+      },
+      { ttl },
+    );
+    const signed = await this.wallet.signRecipe(
+      recipe,
+      (payload) => this.unshieldedKeystore.signData(payload),
+    );
+    const finalized = await this.wallet.finalizeRecipe(signed);
+    return await this.wallet.submitTransaction(finalized);
   }
 
   async start(): Promise<void> {

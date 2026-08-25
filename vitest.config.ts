@@ -23,6 +23,10 @@ export default defineConfig({
     hookTimeout: isRemote ? 12 * 60 * 60_000 : 15 * 60_000,
     env: envFromFile,
     include: ['src/**/*.test.ts'],
+    // Two suites share one devnet and one Alice wallet. Vitest runs test files in
+    // parallel by default, and concurrent spends of the same UTXOs produce
+    // nondeterministic balancing failures. Keep the whole run sequential.
+    fileParallelism: false,
     reporters: ['default'],
     // Real-network tests share on-chain state and must run in order.
     sequence: { concurrent: false },
