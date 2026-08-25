@@ -98,7 +98,7 @@ describe(`Private Party smart contract via midnight-js (${network})`, () => {
     const isRemote = network !== 'local';
     const syncTimeoutMs = Number(
         process.env['MIDNIGHT_SYNC_TIMEOUT_MS'] ??
-            (isRemote ? 60 * 60_000 : 10 * 60_000),
+            (isRemote ? 3 * 60 * 60_000 : 10 * 60_000),
     );
 
     const ALICE_PRIVATE_ID = 'PartyPrivateState';
