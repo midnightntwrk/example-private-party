@@ -1,3 +1,10 @@
+> [!WARNING]
+> **This repository is archived and no longer maintained.**
+>
+> `example-private-party` now lives in [midnight-examples](https://github.com/midnightntwrk/midnight-examples), Midnight's example monorepo, where every example compiles and runs against one pinned toolchain in CI.
+>
+> Use [`examples/private-party`](https://github.com/midnightntwrk/midnight-examples/tree/main/examples/private-party) and follow the [private party tutorial](https://docs.midnight.network/tutorials/private-party). This repo is read-only and will not be updated for future SDK releases.
+
 # Private Party Example
 
 This repository implements a private party DApp that demonstrates the privacy boundary in Midnight DApps. The party goers send an RSVP under a pseudonym and remain anonymous until they arrive at the party. The party has an entry fee and that entry fee is paid in NIGHT -- this is the exact location of the privacy boundary for party goers. The organizer remains anonymous until they claim the fees collected from the entry cost at which time they become public (on-chain).
